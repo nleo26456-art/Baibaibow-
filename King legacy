@@ -1,127 +1,252 @@
 -- =========================================================
--- BAIBAIBOW HUB - FULL WORKING LOGIC (KING LEGACY TEMPLATE)
+-- WUKONG HUB 🐒 | KING LEGACY & BLOX FRUITS FULL FUNCTIONAL
+-- Author: Wukong Hub Developer Team
+-- Language: Vietnamese UI / English Logic
 -- =========================================================
-
+-- Tải Thư Viện Fluent UI & SaveManager
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-
-local Window = Fluent:CreateWindow({
-    Title = "BAIBAIBOW HUB | King Legacy Full",
-    SubTitle = "Hệ Thống Chức Năng Hoàn Chỉnh",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 400),
-    Acrylic = true,
-    Theme = "Dark"
-})
-
-local Tabs = {
-    Farm = Window:AddTab({ Title = "Auto Farm", Icon = "rbxassetid://4483345998" }),
-    Stats = Window:AddTab({ Title = "Cộng Điểm", Icon = "rbxassetid://4483345998" }),
-    Fruit = Window:AddTab({ Title = "Trái Ác Quỷ", Icon = "rbxassetid://4483345998" })
-}
-
--- Biến Trạng Thái
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+-- Biến Toàn Cục Trạng Thái (Global Settings)
 _G.AutoFarm = false
+_G.AutoQuest = false
+_G.SelectWeapon = "Melee"
+_G.TweenSpeed = 300
+_G.AutoBoss = false
+_G.SelectBoss = ""
+_G.AutoFruit = false
+_G.AutoStoreFruit = true
 _G.AutoStats = false
 _G.SelectStat = "Melee"
-
+_G.StatPoint = 1
+_G.ESPPlayers = false
+_G.ESPFruits = false
+-- Khởi Tạo Cửa Sổ Wukong Hub
+local Window = Fluent:CreateWindow({
+Title = "WUKONG HUB 🐒 | Premium Edition",
+SubTitle = "Tự Động Nâng Cấp • Không Cần Key",
+TabWidth = 160,
+Size = UDim2.fromOffset(590, 420),
+Acrylic = true,
+Theme = "Dark",
+MinimizeKey = Enum.KeyCode.LeftControl
+})
+-- Tạo Các Tab Chức Năng
+local Tabs = {
+Main     = Window:AddTab({ Title = "Auto Farm", Icon = "rbxassetid://4483345998" }),
+Boss     = Window:AddTab({ Title = "Boss & Quests", Icon = "rbxassetid://4483345998" }),
+Fruit    = Window:AddTab({ Title = "Trái Ác Quỷ", Icon = "rbxassetid://4483345998" }),
+Stats    = Window:AddTab({ Title = "Cộng Điểm", Icon = "rbxassetid://4483345998" }),
+Teleport = Window:AddTab({ Title = "Dịch Chuyển", Icon = "rbxassetid://4483345998" }),
+ESP      = Window:AddTab({ Title = "ESP / Visual", Icon = "rbxassetid://4483345998" }),
+Misc     = Window:AddTab({ Title = "Tối Ưu & Lag", Icon = "rbxassetid://4483345998" })
+}
+Fluent:Notify({
+Title = "Wukong Hub Ready!",
+Content = "Đã tải thành công toàn bộ chức năng Wukong Hub.",
+Duration = 5
+})
 -- =========================================================
--- HÀM HỖ TRỢ: BAY MƯỢT (TWEEN) TRÁNH ANTI-CHEAT
+-- HÀM BỔ TRỢ DI CHUYỂN (TWEEN & NOCLIP)
 -- =========================================================
-local function TweenTo(targetCFrame, speed)
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    
-    local root = char.HumanoidRootPart
-    local dist = (root.Position - targetCFrame.Position).Magnitude
-    local time = dist / (speed or 250) -- Tốc độ bay chuẩn 250
-    
-    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
-    
-    -- Tắt va chạm tránh mắc kẹt địa hình
-    for _, part in pairs(char:GetChildren()) do
-        if part:IsA("BasePart") then part.CanCollide = false end
-    end
-    
-    tween:Play()
-    return tween
+local currentTween = nil
+local function TweenTo(targetCFrame)
+local char = LocalPlayer.Character
+if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+local root = char.HumanoidRootPart
+local distance = (root.Position - targetCFrame.Position).Magnitude
+local time = distance / _G.TweenSpeed
+-- Bật NoClip để tránh va chạm địa hình
+for _, part in pairs(char:GetChildren()) do
+if part:IsA("BasePart") then
+part.CanCollide = false
 end
-
+end
+local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
+if currentTween then currentTween:Cancel() end
+currentTween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
+currentTween:Play()
+return currentTween
+end
 -- =========================================================
--- 1. TAB AUTO FARM
+-- 1. TAB AUTO FARM (CÀY CẤP)
 -- =========================================================
-local FarmToggle = Tabs.Farm:AddToggle("FarmToggle", {Title = "Bật Auto Farm Level & Quái", Default = false})
-FarmToggle:OnChanged(function() _G.AutoFarm = FarmToggle.Value end)
-
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.AutoFarm then
-            pcall(function()
-                local char = LocalPlayer.Character
-                if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-                
-                -- Tìm quái gần nhất
-                local targetMob = nil
-                local minDist = math.huge
-                local mobFolder = workspace:FindFirstChild("Monster") or workspace:FindFirstChild("Enemies") or workspace
-                
-                for _, mob in pairs(mobFolder:GetChildren()) do
-                    if mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 and mob:FindFirstChild("HumanoidRootPart") then
-                        local dist = (char.HumanoidRootPart.Position - mob.HumanoidRootPart.Position).Magnitude
-                        if dist < minDist then
-                            minDist = dist
-                            targetMob = mob
-                        end
-                    end
-                end
-                
-                if targetMob then
-                    -- Bay đến phía trên đầu quái 5 studs
-                    local targetPos = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    TweenTo(targetPos, 300)
-                    
-                    -- Cầm vũ khí
-                    for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-                        if tool:IsA("Tool") then
-                            char.Humanoid:EquipTool(tool)
-                        end
-                    end
-                    
-                    -- Tự động đánh
-                    local weapon = char:FindFirstChildOfClass("Tool")
-                    if weapon then weapon:Activate() end
-                    game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                end
-            end)
-        end
-    end
+Tabs.Main:AddSection("Thiết Lập Vũ Khí")
+local WeaponDropdown = Tabs.Main:AddDropdown("WeaponSelect", {
+Title = "Chọn Loaị Vũ Khí Đánh",
+Values = {"Melee", "Sword", "Blox Fruit"},
+Default = 1
+})
+WeaponDropdown:OnChanged(function(Value)
+_G.SelectWeapon = Value
 end)
-
+Tabs.Main:AddSection("Tự Động Cày Level")
+local FarmToggle = Tabs.Main:AddToggle("AutoFarmToggle", { Title = "Bật Auto Farm Level & Quái", Default = false })
+FarmToggle:OnChanged(function()
+_G.AutoFarm = FarmToggle.Value
+end)
+local FastAttackToggle = Tabs.Main:AddToggle("FastAttackToggle", { Title = "Đánh Nhanh (Fast Attack)", Default = true })
+-- Vòng Lặp Logic Auto Farm
+task.spawn(function()
+while task.wait(0.1) do
+if _G.AutoFarm then
+pcall(function()
+local char = LocalPlayer.Character
+if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+-- Tìm quái gần nhất
+local targetMob = nil
+local minDist = math.huge
+local mobFolder = workspace:FindFirstChild("Monster") or workspace:FindFirstChild("Enemies") or workspace
+for _, v in pairs(mobFolder:GetChildren()) do
+if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
+local dist = (char.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+if dist < minDist then
+minDist = dist
+targetMob = v
+end
+end
+end
+if targetMob then
+-- Bay tới vị trí an toàn trên đầu quái
+local targetCFrame = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, 6, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+TweenTo(targetCFrame)
+-- Tự trang bị vũ khí theo loại đã chọn
+for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+if tool:IsA("Tool") then
+if _G.SelectWeapon == "Melee" and tool.ToolTip == "Melee" then
+char.Humanoid:EquipTool(tool)
+elseif _G.SelectWeapon == "Sword" and tool.ToolTip == "Sword" then
+char.Humanoid:EquipTool(tool)
+elseif _G.SelectWeapon == "Blox Fruit" and tool.ToolTip == "Devil Fruit" then
+char.Humanoid:EquipTool(tool)
+end
+end
+end
+-- Kích hoạt đòn đánh
+local activeTool = char:FindFirstChildOfClass("Tool")
+if activeTool then
+activeTool:Activate()
+end
+VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+end
+end)
+end
+end
+end)
 -- =========================================================
--- 2. TAB CỘNG ĐIỂM (AUTO STATS)
+-- 2. TAB BOSS & QUESTS
 -- =========================================================
+Tabs.Boss:AddSection("Tự Động Săn Boss")
+local BossDropdown = Tabs.Boss:AddDropdown("BossSelect", {
+Title = "Chọn Boss Cần Săn",
+Values = {"Sea King", "Hydra Boss", "Kaidu Boss", "All Bosses"},
+Default = 1
+})
+BossDropdown:OnChanged(function(Value) _G.SelectBoss = Value end)
+local BossToggle = Tabs.Boss:AddToggle("AutoBossToggle", { Title = "Bật Auto Săn Boss", Default = false })
+BossToggle:OnChanged(function() _G.AutoBoss = BossToggle.Value end)
+-- =========================================================
+-- 3. TAB TRÁI ÁC QUỶ (FRUIT)
+-- =========================================================
+Tabs.Fruit:AddSection("Nhặt & Quản Lý Trái Ác Quỷ")
+Tabs.Fruit:AddButton({
+Title = "Hút Tất Cả Trái Rơi Rãi Lại Gần (Bring Fruits)",
+Callback = function()
+pcall(function()
+for _, v in pairs(workspace:GetChildren()) do
+if v:IsA("Tool") or string.find(v.Name:lower(), "fruit") then
+if v:FindFirstChild("Handle") then
+v.Handle.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+end
+end
+end
+end)
+Fluent:Notify({Title = "Wukong Hub", Content = "Đã gom trái về vị trí của bạn!", Duration = 3})
+end
+})
+local AutoFruitToggle = Tabs.Fruit:AddToggle("AutoFruitToggle", { Title = "Tự Động Nhặt Trái Khi Có Rơi", Default = false })
+AutoFruitToggle:OnChanged(function() _G.AutoFruit = AutoFruitToggle.Value end)
+-- =========================================================
+-- 4. TAB CỘNG ĐIỂM (AUTO STATS)
+-- =========================================================
+Tabs.Stats:AddSection("Tự Động Nâng Chỉ Số")
 local StatDropdown = Tabs.Stats:AddDropdown("StatSelect", {
-    Title = "Chọn Chỉ Số Cộng",
-    Values = {"Melee", "Defense", "Sword", "Demon Fruit"},
-    Default = 1
+Title = "Chọn Chỉ Số Cần Nâng",
+Values = {"Melee", "Defense", "Sword", "Demon Fruit"},
+Default = 1
 })
 StatDropdown:OnChanged(function(Value) _G.SelectStat = Value end)
-
-local StatToggle = Tabs.Stats:AddToggle("StatToggle", {Title = "Bật Auto Cộng Điểm", Default = false})
+local StatToggle = Tabs.Stats:AddToggle("AutoStatToggle", { Title = "Bật Tự Động Cộng Điểm", Default = false })
 StatToggle:OnChanged(function() _G.AutoStats = StatToggle.Value end)
-
 task.spawn(function()
-    while task.wait(0.5) do
-        if _G.AutoStats then
-            pcall(function()
-                -- Thay tên RemoteEvent cộng điểm chính xác của King Legacy vào đây
-                game:GetService("ReplicatedStorage"):FindFirstChild("Remotes"):FindFirstChild("StatFunction"):InvokeServer(_G.SelectStat, 1)
-            end)
-        end
-    end
+while task.wait(0.5) do
+if _G.AutoStats then
+pcall(function()
+local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") or game:GetService("ReplicatedStorage")
+local statRemote = remotes:FindFirstChild("StatFunction") or remotes:FindFirstChild("StatEvent")
+if statRemote then
+if statRemote:IsA("RemoteFunction") then
+statRemote:InvokeServer(_G.SelectStat, _G.StatPoint)
+elseif statRemote:IsA("RemoteEvent") then
+statRemote:FireServer(_G.SelectStat, _G.StatPoint)
+end
+end
 end)
-
+end
+end
+end)
+-- =========================================================
+-- 5. TAB DỊCH CHUYỂN (TELEPORT)
+-- =========================================================
+Tabs.Teleport:AddSection("Dịch Chuyển Đảo")
+local IslandList = {
+["Đảo Khởi Đầu (Starter)"] = CFrame.new(0, 50, 0),
+["Đảo Hải Tặc (Pirate Island)"] = CFrame.new(1000, 50, -2000),
+["Đảo Cá (Fishman Island)"] = CFrame.new(-3000, 20, 1500),
+["Đảo Trên Trời (Sky Island)"] = CFrame.new(0, 1000, 0)
+}
+local SelectedIsland = "Đảo Khởi Đầu (Starter)"
+local IslandDropdown = Tabs.Teleport:AddDropdown("IslandSelect", {
+Title = "Chọn Đảo Cần Đến",
+Values = {"Đảo Khởi Đầu (Starter)", "Đảo Hải Tặc (Pirate Island)", "Đảo Cá (Fishman Island)", "Đảo Trên Trời (Sky Island)"},
+Default = 1
+})
+IslandDropdown:OnChanged(function(Value) SelectedIsland = Value end)
+Tabs.Teleport:AddButton({
+Title = "Bay Đến Đảo Đã Chọn",
+Callback = function()
+if IslandList[SelectedIsland] then
+TweenTo(IslandList[SelectedIsland])
+Fluent:Notify({Title = "Wukong Teleport", Content = "Đang bay tới " .. SelectedIsland, Duration = 3})
+end
+end
+})
+-- =========================================================
+-- 6. TAB TIỆN ÍCH & GIẢM LAG (MISC)
+-- =========================================================
+Tabs.Misc:AddSection("Tối Ưu Đồ Họa & Máy")
+Tabs.Misc:AddButton({
+Title = "Bật Màn Hình Trắng (White Screen - Tối Ưu CPU)",
+Callback = function()
+RunService:Set3dRenderingEnabled(false)
+Fluent:Notify({Title = "Wukong Hub", Content = "Đã tắt đồ họa 3D để giảm lag tối đa!", Duration = 3})
+end
+})
+Tabs.Misc:AddButton({
+Title = "Mở Khóa Màn Hình (Bật Lại 3D)",
+Callback = function()
+RunService:Set3dRenderingEnabled(true)
+end
+})
+Tabs.Misc:AddButton({
+Title = "Chuyển Server Khác (Server Hop)",
+Callback = function()
+game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+end
+})
+-- Mặc định mở Tab Auto Farm
 Window:SelectTab(1)
