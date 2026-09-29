@@ -1,0 +1,279 @@
+-- Tải thư viện giao diện Fluent UI (Phong cách Ryu Hub - Chuẩn Tiếng Việt)
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+
+-- Khởi tạo cửa sổ Menu chính
+local Window = Fluent:CreateWindow({
+    Title = "RYU HUB | Grand Piece Online",
+    SubTitle = "Bản Tiếng Việt • Full Chức Năng • No Key",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 400),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+-- Tạo các Tab danh mục bằng Tiếng Việt
+local Tabs = {
+    Farm = Window:AddTab({ Title = "Auto Farm", Icon = "sword" }),
+    Stats = Window:AddTab({ Title = "Cộng Điểm", Icon = "user" }),
+    Fruit = Window:AddTab({ Title = "Trái & Rương", Icon = "box" }),
+    Teleport = Window:AddTab({ Title = "Dịch Chuyển", Icon = "map-pin" }),
+    Player = Window:AddTab({ Title = "Nhân Vật", Icon = "shield" })
+}
+
+-- Khai báo các biến trạng thái
+_G.AutoFarmLevel = false
+_G.SelectWeapon = "Melee"
+_G.AutoStats = false
+_G.SelectedStat = "Strength"
+_G.AutoCollectFruit = false
+_G.AutoOpenChest = false
+_G.InfJump = false
+_G.Noclip = false
+
+--------------------------------------------------------------------------------
+-- 1. TAB AUTO FARM (CÀY CẤP & ĐÁNH QUÁI)
+--------------------------------------------------------------------------------
+Tabs.Farm:AddSection("Cài Đặt Vũ Khí")
+
+Tabs.Farm:AddDropdown("WeaponSelect", {
+    Title = "Chọn Loại Vũ Khí Sử Dụng",
+    Values = {"Melee", "Sword", "Devil Fruit"},
+    Default = "Melee",
+    Callback = function(Value)
+        _G.SelectWeapon = Value
+    end
+})
+
+Tabs.Farm:AddSection("Tự Động Cày Cấp")
+
+Tabs.Farm:AddToggle("AutoFarmToggle", {
+    Title = "Bật/Tắt Auto Farm Level & Quái",
+    Default = false,
+    Callback = function(Value)
+        _G.AutoFarmLevel = Value
+    end
+})
+
+-- Vòng lặp xử lý Auto Farm ngầm
+task.spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoFarmLevel then
+            pcall(function()
+                local player = game.Players.LocalPlayer
+                local char = player.Character
+                if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+                -- Tự cầm vũ khí đã chọn
+                for _, tool in pairs(player.Backpack:GetChildren()) do
+                    if tool:IsA("Tool") and (tool.ToolTip == _G.SelectWeapon or tool.Name:find(_G.SelectWeapon)) then
+                        char.Humanoid:EquipTool(tool)
+                    end
+                end
+
+                -- Tìm và giữ khoảng cách an toàn trên đầu quái
+                local npcs = workspace:FindFirstChild("NPCs") or workspace:FindFirstChild("Enemies") or workspace
+                for _, v in pairs(npcs:GetChildren()) do
+                    if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
+                        char.HumanoidRootPart.CFrame = v.HumanoidRootPart.CFrame * CFrame.new(0, 7, 0)
+                        
+                        -- Tự động đánh
+                        local tool = char:FindFirstChildOfClass("Tool")
+                        if tool then tool:Activate() end
+                        
+                        game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                        break
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 2. TAB CỘNG ĐIỂM (AUTO STATS)
+--------------------------------------------------------------------------------
+Tabs.Stats:AddSection("Tự Động Nâng Điểm")
+
+Tabs.Stats:AddDropdown("StatSelect", {
+    Title = "Chọn Chỉ Số Cần Nâng",
+    Values = {"Strength", "Stamina", "Defense", "Sword", "Devil Fruit"},
+    Default = "Strength",
+    Callback = function(Value)
+        _G.SelectedStat = Value
+    end
+})
+
+Tabs.Stats:AddToggle("AutoStatToggle", {
+    Title = "Bật/Tắt Tự Động Cộng Điểm",
+    Default = false,
+    Callback = function(Value)
+        _G.AutoStats = Value
+    end
+})
+
+-- Vòng lặp Auto Stats
+task.spawn(function()
+    while task.wait(0.5) do
+        if _G.AutoStats then
+            pcall(function()
+                local remotes = game:GetService("ReplicatedStorage"):FindFirstChild("Events") or game:GetService("ReplicatedStorage")
+                if remotes:FindFirstChild("Stats") then
+                    remotes.Stats:FireServer(_G.SelectedStat, 1)
+                end
+            end)
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 3. TAB TRÁI ÁC QUỶ & RƯƠNG (FRUIT & CHEST)
+--------------------------------------------------------------------------------
+Tabs.Fruit:AddSection("Thu Thập Trái & Rương")
+
+Tabs.Fruit:AddToggle("AutoFruitToggle", {
+    Title = "Tự Động Dịch Chuyển Nhặt Trái Ác Quỷ",
+    Default = false,
+    Callback = function(Value)
+        _G.AutoCollectFruit = Value
+    end
+})
+
+Tabs.Fruit:AddToggle("AutoChestToggle", {
+    Title = "Tự Động Mở Rương Toàn Bản Đồ",
+    Default = false,
+    Callback = function(Value)
+        _G.AutoOpenChest = Value
+    end
+})
+
+-- Vòng lặp Nhặt Trái & Rương
+task.spawn(function()
+    while task.wait(0.5) do
+        pcall(function()
+            local char = game.Players.LocalPlayer.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+            -- Nhặt Trái
+            if _G.AutoCollectFruit then
+                for _, item in pairs(workspace:GetChildren()) do
+                    if item:IsA("Tool") or item.Name:lower():find("fruit") then
+                        char.HumanoidRootPart.CFrame = item:GetModelCFrame() or item.Handle.CFrame
+                        task.wait(0.2)
+                    end
+                end
+            end
+
+            -- Mở Rương
+            if _G.AutoOpenChest then
+                for _, chest in pairs(workspace:GetDescendants()) do
+                    if chest.Name:lower():find("chest") and chest:IsA("BasePart") then
+                        char.HumanoidRootPart.CFrame = chest.CFrame * CFrame.new(0, 3, 0)
+                        task.wait(0.3)
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 4. TAB DỊCH CHUYỂN ĐẢO (TELEPORT)
+--------------------------------------------------------------------------------
+Tabs.Teleport:AddSection("Dịch Chuyển Đảo Biển 1")
+
+Tabs.Teleport:AddButton({
+    Title = "Đảo Khởi Đầu (Town of Beginnings)",
+    Callback = function()
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(-1200, 20, 500)
+        end
+    end
+})
+
+Tabs.Teleport:AddButton({
+    Title = "Đảo Hải Quân (Marine Base)",
+    Callback = function()
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(-2800, 30, -3200)
+        end
+    end
+})
+
+Tabs.Teleport:AddButton({
+    Title = "Đảo Cát (Desert Kingdom)",
+    Callback = function()
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            char.HumanoidRootPart.CFrame = CFrame.new(3000, 30, -1500)
+        end
+    end
+})
+
+--------------------------------------------------------------------------------
+-- 5. TAB BỔ TRỢ NHÂN VẬT (PLAYER)
+--------------------------------------------------------------------------------
+Tabs.Player:AddSection("Chỉ Số Di Chuyển")
+
+Tabs.Player:AddSlider("WalkSpeedSlider", {
+    Title = "Tốc Độ Di Chuyển (WalkSpeed)",
+    Default = 16,
+    Min = 16,
+    Max = 250,
+    Rounding = 0,
+    Callback = function(Value)
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = Value
+        end
+    end
+})
+
+Tabs.Player:AddToggle("InfJumpToggle", {
+    Title = "Nhảy Vô Hạn (Infinite Jump)",
+    Default = false,
+    Callback = function(Value)
+        _G.InfJump = Value
+    end
+})
+
+Tabs.Player:AddToggle("NoclipToggle", {
+    Title = "Đi Xuyên Tường (Noclip)",
+    Default = false,
+    Callback = function(Value)
+        _G.Noclip = Value
+    end
+})
+
+-- Xử lý Nhảy vô hạn
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if _G.InfJump then
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChildOfClass("Humanoid") then
+            char:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+        end
+    end
+end)
+
+-- Xử lý Noclip (Xuyên tường)
+game:GetService("RunService").Stepped:Connect(function()
+    if _G.Noclip then
+        local char = game.Players.LocalPlayer.Character
+        if char then
+            for _, v in pairs(char:GetChildren()) do
+                if v:IsA("BasePart") then
+                    v.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- Thông báo hoàn thành
+Fluent:Notify({
+    Title = "RYU HUB • GPO",
+    Content = "Tải thành công menu Tiếng Việt!",
+    Duration = 5
+})
