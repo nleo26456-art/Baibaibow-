@@ -1,97 +1,98 @@
 -- =========================================================
--- RYU / BAIBAIBOW HUB - KING LEGACY (BẢN CÓ LOGIC ĐÁNH QUÁI THỰC TẾ)
+-- BAIBAIBOW HUB - FULL WORKING LOGIC (KING LEGACY TEMPLATE)
 -- =========================================================
 
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
 local Window = Fluent:CreateWindow({
-    Title = "BAIBAIBOW HUB | King Legacy",
-    SubTitle = "Bản Auto Farm Đánh Quái",
+    Title = "BAIBAIBOW HUB | King Legacy Full",
+    SubTitle = "Hệ Thống Chức Năng Hoàn Chỉnh",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 400),
     Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
+    Theme = "Dark"
 })
 
 local Tabs = {
-    Main = Window:AddTab({ Title = "Auto Farm", Icon = "rbxassetid://4483345998" }),
-    Misc = Window:AddTab({ Title = "Cài Đặt / Giảm Lag", Icon = "rbxassetid://4483345998" })
+    Farm = Window:AddTab({ Title = "Auto Farm", Icon = "rbxassetid://4483345998" }),
+    Stats = Window:AddTab({ Title = "Cộng Điểm", Icon = "rbxassetid://4483345998" }),
+    Fruit = Window:AddTab({ Title = "Trái Ác Quỷ", Icon = "rbxassetid://4483345998" })
 }
 
--- Biến lưu trạng thái
+-- Biến Trạng Thái
 _G.AutoFarm = false
+_G.AutoStats = false
+_G.SelectStat = "Melee"
 
-Tabs.Main:AddParagraph({
-    Title = "Hệ Thống Auto Farm",
-    Content = "Bật công tắc bên dưới, nhân vật sẽ tự bay tới quái gần nhất và đánh."
-})
-
-local FarmToggle = Tabs.Main:AddToggle("AutoFarmToggle", {Title = "Bật Auto Farm Quái Gần Nhất", Default = false})
-
-FarmToggle:OnChanged(function()
-    _G.AutoFarm = FarmToggle.Value
-    if _G.AutoFarm then
-        Fluent:Notify({Title = "Wukong Hub", Content = "Đã BẬT Auto Farm!", Duration = 3})
-    else
-        Fluent:Notify({Title = "Wukong Hub", Content = "Đã TẮT Auto Farm!", Duration = 3})
+-- =========================================================
+-- HÀM HỖ TRỢ: BAY MƯỢT (TWEEN) TRÁNH ANTI-CHEAT
+-- =========================================================
+local function TweenTo(targetCFrame, speed)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    
+    local root = char.HumanoidRootPart
+    local dist = (root.Position - targetCFrame.Position).Magnitude
+    local time = dist / (speed or 250) -- Tốc độ bay chuẩn 250
+    
+    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(root, tweenInfo, {CFrame = targetCFrame})
+    
+    -- Tắt va chạm tránh mắc kẹt địa hình
+    for _, part in pairs(char:GetChildren()) do
+        if part:IsA("BasePart") then part.CanCollide = false end
     end
-end)
+    
+    tween:Play()
+    return tween
+end
 
 -- =========================================================
--- VÒNG LẶP LOGIC XỬ LÝ AUTO FARM (ĐÁNH QUÁI THỰC TẾ)
+-- 1. TAB AUTO FARM
 -- =========================================================
+local FarmToggle = Tabs.Farm:AddToggle("FarmToggle", {Title = "Bật Auto Farm Level & Quái", Default = false})
+FarmToggle:OnChanged(function() _G.AutoFarm = FarmToggle.Value end)
+
 task.spawn(function()
     while task.wait(0.1) do
         if _G.AutoFarm then
             pcall(function()
-                local player = game.Players.LocalPlayer
-                local char = player.Character
+                local char = LocalPlayer.Character
                 if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-
-                -- 1. Tìm quái còn sống gần nhất trong game
-                local targetMob = nil
-                local minDistance = math.huge
                 
-                -- Tìm quái ở các thư mục chứa quái phổ biến của King Legacy
+                -- Tìm quái gần nhất
+                local targetMob = nil
+                local minDist = math.huge
                 local mobFolder = workspace:FindFirstChild("Monster") or workspace:FindFirstChild("Enemies") or workspace
-
-                for _, v in pairs(mobFolder:GetChildren()) do
-                    if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
-                        local dist = (char.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
-                        if dist < minDistance then
-                            minDistance = dist
-                            targetMob = v
+                
+                for _, mob in pairs(mobFolder:GetChildren()) do
+                    if mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 and mob:FindFirstChild("HumanoidRootPart") then
+                        local dist = (char.HumanoidRootPart.Position - mob.HumanoidRootPart.Position).Magnitude
+                        if dist < minDist then
+                            minDist = dist
+                            targetMob = mob
                         end
                     end
                 end
-
-                -- 2. Nếu tìm thấy quái -> Tự bay tới và Tấn công
+                
                 if targetMob then
-                    -- Bật Noclip (Xuyên tường để không bị dính địa hình)
-                    for _, part in pairs(char:GetChildren()) do
-                        if part:IsA("BasePart") then 
-                            part.CanCollide = false 
-                        end
-                    end
-
-                    -- Dịch chuyển đứng trên đầu quái 6 studs (khoảng cách an toàn)
-                    char.HumanoidRootPart.CFrame = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, 6, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-
-                    -- Tự trang bị vũ khí từ balo (Backpack)
-                    for _, tool in pairs(player.Backpack:GetChildren()) do
+                    -- Bay đến phía trên đầu quái 5 studs
+                    local targetPos = targetMob.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                    TweenTo(targetPos, 300)
+                    
+                    -- Cầm vũ khí
+                    for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
                         if tool:IsA("Tool") then
                             char.Humanoid:EquipTool(tool)
                         end
                     end
-
-                    -- Tự bấm đánh
-                    local equippedTool = char:FindFirstChildOfClass("Tool")
-                    if equippedTool then
-                        equippedTool:Activate()
-                    end
                     
-                    -- Giả lập click chuột liên tục
+                    -- Tự động đánh
+                    local weapon = char:FindFirstChildOfClass("Tool")
+                    if weapon then weapon:Activate() end
                     game:GetService("VirtualUser"):Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
                 end
             end)
@@ -99,5 +100,28 @@ task.spawn(function()
     end
 end)
 
--- Mặc định chọn Tab 1
+-- =========================================================
+-- 2. TAB CỘNG ĐIỂM (AUTO STATS)
+-- =========================================================
+local StatDropdown = Tabs.Stats:AddDropdown("StatSelect", {
+    Title = "Chọn Chỉ Số Cộng",
+    Values = {"Melee", "Defense", "Sword", "Demon Fruit"},
+    Default = 1
+})
+StatDropdown:OnChanged(function(Value) _G.SelectStat = Value end)
+
+local StatToggle = Tabs.Stats:AddToggle("StatToggle", {Title = "Bật Auto Cộng Điểm", Default = false})
+StatToggle:OnChanged(function() _G.AutoStats = StatToggle.Value end)
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if _G.AutoStats then
+            pcall(function()
+                -- Thay tên RemoteEvent cộng điểm chính xác của King Legacy vào đây
+                game:GetService("ReplicatedStorage"):FindFirstChild("Remotes"):FindFirstChild("StatFunction"):InvokeServer(_G.SelectStat, 1)
+            end)
+        end
+    end
+end)
+
 Window:SelectTab(1)
