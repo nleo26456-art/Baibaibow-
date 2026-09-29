@@ -1,5 +1,5 @@
 -- =========================================================
--- WUKONG HUB - FULL FUNCTIONAL SCRIPT TEMPLATE (KING LEGACY / BLOX FRUITS)
+-- BAIBAIBOW HUB - FULL FUNCTIONAL SCRIPT TEMPLATE (KING LEGACY / BLOX FRUITS)
 -- =========================================================
 
 -- Tải thư viện Fluent UI
@@ -8,7 +8,7 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 
 -- Khởi tạo Menu Wukong Hub
 local Window = Fluent:CreateWindow({
-    Title = "WUKONG HUB 🐒 | Full Feature",
+    Title = "baibaibow 🐒 | Full Feature",
     SubTitle = "Bản Tiếng Việt • No Key System",
     TabWidth = 160,
     Size = UDim2.fromOffset(600, 420),
