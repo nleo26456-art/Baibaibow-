@@ -2,6 +2,29 @@
 -- BAIBAIBOW HUB - FULL FUNCTIONAL SCRIPT TEMPLATE (KING LEGACY / BLOX FRUITS)
 -- =========================================================
 
+task.spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoFarm then
+            pcall(function()
+                -- 1. Tìm quái gần nhất trong game
+                local enemy = workspace.Enemies:FindFirstChildOfClass("Model") 
+                if enemy and enemy:FindFirstChild("HumanoidRootPart") and enemy.Humanoid.Health > 0 then
+                    
+                    -- 2. Dịch chuyển nhân vật tới vị trí trên đầu quái
+                    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = enemy.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+                    
+                    -- 3. Cầm vũ khí và tự động đánh
+                    local tool = game.Players.LocalPlayer.Backpack:FindFirstChildOfClass("Tool") or game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    if tool then
+                        game.Players.LocalPlayer.Character.Humanoid:EquipTool(tool)
+                        tool:Activate()
+                    end
+                end
+            end)
+        end
+    end
+end)
+
 -- Tải thư viện Fluent UI
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
